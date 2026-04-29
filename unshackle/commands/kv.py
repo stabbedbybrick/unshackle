@@ -81,7 +81,19 @@ def kv() -> None:
 @click.argument("to_vault_name", type=str)
 @click.argument("from_vault_names", nargs=-1, type=click.UNPROCESSED)
 @click.option("-s", "--service", type=str, default=None, help="Only copy data to and from a specific service.")
-def copy(to_vault_name: str, from_vault_names: list[str], service: Optional[str] = None) -> None:
+@click.option(
+    "-l",
+    "--local-only",
+    is_flag=True,
+    default=False,
+    help="Only copy data for services installed locally (skip vault tables for services not present in the configured services path).",
+)
+def copy(
+    to_vault_name: str,
+    from_vault_names: list[str],
+    service: Optional[str] = None,
+    local_only: bool = False,
+) -> None:
     """
     Copy data from multiple Key Vaults into a single Key Vault.
     Rows with matching KIDs are skipped unless there's no KEY set.
@@ -107,13 +119,28 @@ def copy(to_vault_name: str, from_vault_names: list[str], service: Optional[str]
     vault_names = ", ".join([v.name for v in from_vaults])
     log.info(f"Copying data from {vault_names} → {to_vault.name}")
 
+    if service and local_only:
+        raise click.UsageError("--service and --local-only are mutually exclusive.")
+
     if service:
         service = Services.get_tag(service)
         log.info(f"Filtering by service: {service}")
 
+    installed: Optional[set[str]] = None
+    if local_only:
+        installed = {t.upper() for t in Services.get_tags()}
+        log.info(f"Filtering by locally installed services ({len(installed)} found)")
+
     total_added = 0
     for from_vault in from_vaults:
-        services_to_copy = [service] if service else from_vault.get_services()
+        services_to_copy = [service] if service else list(from_vault.get_services())
+
+        if installed is not None:
+            before = len(services_to_copy)
+            services_to_copy = [s for s in services_to_copy if s and s.upper() in installed]
+            skipped = before - len(services_to_copy)
+            if skipped:
+                log.info(f"{from_vault.name}: skipping {skipped} service(s) not installed locally")
 
         for service_tag in services_to_copy:
             added = copy_service_data(to_vault, from_vault, service_tag, log)
@@ -128,8 +155,20 @@ def copy(to_vault_name: str, from_vault_names: list[str], service: Optional[str]
 @kv.command()
 @click.argument("vaults", nargs=-1, type=click.UNPROCESSED)
 @click.option("-s", "--service", type=str, default=None, help="Only sync data to and from a specific service.")
+@click.option(
+    "-l",
+    "--local-only",
+    is_flag=True,
+    default=False,
+    help="Only sync data for services installed locally (skip vault tables for services not present in the configured services path).",
+)
 @click.pass_context
-def sync(ctx: click.Context, vaults: list[str], service: Optional[str] = None) -> None:
+def sync(
+    ctx: click.Context,
+    vaults: list[str],
+    service: Optional[str] = None,
+    local_only: bool = False,
+) -> None:
     """
     Ensure multiple Key Vaults copies of all keys as each other.
     It's essentially just a bi-way copy between each vault.
@@ -139,9 +178,21 @@ def sync(ctx: click.Context, vaults: list[str], service: Optional[str] = None) -
     if not len(vaults) > 1:
         raise click.ClickException("You must provide more than one Vault to sync.")
 
-    ctx.invoke(copy, to_vault_name=vaults[0], from_vault_names=vaults[1:], service=service)
+    ctx.invoke(
+        copy,
+        to_vault_name=vaults[0],
+        from_vault_names=vaults[1:],
+        service=service,
+        local_only=local_only,
+    )
     for i in range(1, len(vaults)):
-        ctx.invoke(copy, to_vault_name=vaults[i], from_vault_names=[vaults[i - 1]], service=service)
+        ctx.invoke(
+            copy,
+            to_vault_name=vaults[i],
+            from_vault_names=[vaults[i - 1]],
+            service=service,
+            local_only=local_only,
+        )
 
 
 @kv.command()
