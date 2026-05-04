@@ -6,6 +6,76 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 This changelog is automatically generated using [git-cliff](https://git-cliff.org).
 
+## [5.0.0] - 2026-05-04
+
+### Features
+
+- *dl*: Add --vbitrate-range and --abitrate-range options for bitrate range selection
+- *remote*: Server vault lookups, service CDM mapping, key display, and service param forwarding
+- *remote*: Interactive auth handshake, server CDM, cache round-trip, and serve remote-only mode
+- *template*: Add configurable folder naming via output_template.folder
+- *hls*: Probe TS segments for resolution and codec when master playlist lacks RESOLUTION/CODECS tags
+- *downloader*: Consolidate into unified requests-based downloader
+- *dash*: Refactor segment extraction and add content period validation
+- *downloader*: Optimize download throughput with Queue-based threading and raw reads
+- *session*: Replace curl_cffi with rnet for TLS-fingerprinted HTTP
+- *session*: Translate requests 'data' kwarg to rnet equivalents for compatibility
+- *dl*: Allow --slow to accept custom delay range
+- *serve*: Add service allowlist for global and per-user access control
+- *dl*: Change --export flag with manifest URL, subtitles, and track info
+- *dl*: Add download resume support via HTTP Range headers
+- *track*: Add optional per-track session parameter
+- *session*: Optimize header handling in session requests
+- *kv*: Add search subcommand to look up KID across vaults
+- *kv*: Add --local-only flag to copy/sync
+- *config*: Per-title-type folder templates
+- *dl*: Add --no-proxy-download flag
+- *docs*: Add AGENTS.md to .gitignore
+
+### Bug Fixes
+
+- Update actions/checkout to v5 in release workflow
+- *audio*: Support 'xheaac' profile
+- *drm*: Include external KID in PSSH when it differs from existing KIDs
+- *deps*: Bump PyJWT minimum to 2.12.0 for CVE-2026-32597
+- *sanitize*: Restore parentheses stripping in filename sanitization
+- *serve*: Allow remote-only mode without output_template and fix CORS/auth for Cloudflare
+- *remote*: Forward track selection params to server and improve error display
+- *subtitle*: Decompress gzip/zlib responses for subtitle downloads
+- *drm*: Add zero-KID fallback for mp4decrypt and clear HLS track.drm after download
+- *drm*: Add track ID fallback for mp4decrypt CBCS zero-KID content
+- *hybrid*: Read actual HDR metadata for HDR10+ to DV conversion
+- *template*: Detect folder spacer from template separators, not raw string
+- *session*: Native rnet proxy support and cookie compat layer
+- *deps*: Bump aiohttp and pygments to resolve 11 security vulnerabilities
+- *api*: Sanitize user-provided values in log statements to prevent log injection
+- *dl*: Preserve per-language video selection in quality step
+- *dash*: Add SIDX parsing for SegmentBase manifests and deduplicate multi-period segments
+- *gluetun*: Support WireGuard VPN ready detection
+- *api*: Sync REST API download endpoint with updated dl command
+- *drm*: Handle non-UTF-8 output from shaka-packager stderr
+- *tags*: Prevent metadata lookup failures from skipping group tag
+- *dl*: Always report full error trace for download worker failures
+- *dash*: Deduplicate multi-period SegmentBase segments
+- *dash*: Expand CICP enums to full H.273 range
+- *drm*: Pass per-segment PSSH to PlayReady license callback
+- *drm*: Pass per-segment PSSH to Widevine license callback
+- *hls*: Carry DRM keys forward across EXT-X-KEY rotation
+
+### Documentation
+
+- *api*: Update --export from string path to boolean flag
+
+### Performance Improvements
+
+- *downloader*: Optimize hot loop and threading efficiency
+- *downloader*: Parallel byte-range fetch for single-URL tracks
+
+### Maintenance
+
+- *gitignore*: Ignore binary files in unshackle/binaries/
+- Update version to 5.0.0
+
 ## [4.0.0] - 2026-03-17
 
 ### Features
@@ -24,6 +94,11 @@ This changelog is automatically generated using [git-cliff](https://git-cliff.or
 - *dl*: Add skip messages for --no-audio and --no-chapters flags
 - *dl*: Extract closed captions from HLS manifests and improve CC extraction
 - *dl*: Add --worst flag and SHIELD OkHttp fingerprint preset
+- *dl*: Add --remote flag for downloading via remote unshackle server
+- *remote*: Add server-CDM mode, manifest transfer, and region-aware proxy
+- *remote*: Add zlib compression for API payloads and gzip transport
+- *remote*: Fetch service list and CLI options from server for --remote help
+- *session*: Add IP validation for session access and enhance session management
 
 ### Bug Fixes
 
@@ -45,10 +120,15 @@ This changelog is automatically generated using [git-cliff](https://git-cliff.or
 - *ism*: Prevent duplicate track IDs for audio tracks with same lang/codec/bitrate
 - *aria2c*: Correct progress bar tracking for HLS downloads
 - *dl*: Filter CC subtitle languages with --s-lang and extract all manifest CCs
+- *serve*: Use X-Secret-Key header for REST API auth to match pywidevine
+- *drm*: Preserve original PSSH for content_id-based Widevine manifests
+- *drm*: Add zero-KID fallback for mp4decrypt and clear HLS track.drm after download
 
 ### Documentation
 
 - Update and correct configuration documentation
+- *dl*: Add comprehensive list of available `dl` keys and their descriptions
+- Update API and configuration documentation with example service tags
 
 ### Changes
 
@@ -56,6 +136,13 @@ This changelog is automatically generated using [git-cliff](https://git-cliff.or
 - *dl*: Remove legacy multi-fetch loop for unmigrated services
 - *example*: Migrate EXAMPLE service to track_request pattern
 - *providers*: Extract metadata providers into modular system
+- *remote*: Deduplicate CDM loading, proxy resolution, and license handling
+
+### Maintenance
+
+- *changelog*: Update changelog for upcoming release and reorganize sections
+- *changelog*: Update changelog
+- *changelog*: Tag v4.0.0 release
 
 ## [3.0.0] - 2026-02-15
 
@@ -537,20 +624,21 @@ This changelog is automatically generated using [git-cliff](https://git-cliff.or
 - Reorganize Planned Features section in README for clarity
 - Improve track selection logic in dl.py
 
-[unreleased]: https://github.com/unshackle-dl/unshackle/compare/3.0.0..HEAD
-[3.0.0]: https://github.com/unshackle-dl/unshackle/compare/2.3.0..3.0.0
-[2.3.0]: https://github.com/unshackle-dl/unshackle/compare/2.2.0..2.3.0
-[2.2.0]: https://github.com/unshackle-dl/unshackle/compare/2.1.0..2.2.0
-[2.1.0]: https://github.com/unshackle-dl/unshackle/compare/2.0.0..2.1.0
-[2.0.0]: https://github.com/unshackle-dl/unshackle/compare/1.4.8..2.0.0
-[1.4.8]: https://github.com/unshackle-dl/unshackle/compare/1.4.7..1.4.8
-[1.4.7]: https://github.com/unshackle-dl/unshackle/compare/1.4.6..1.4.7
-[1.4.6]: https://github.com/unshackle-dl/unshackle/compare/1.4.5..1.4.6
-[1.4.5]: https://github.com/unshackle-dl/unshackle/compare/1.4.4..1.4.5
-[1.4.4]: https://github.com/unshackle-dl/unshackle/compare/1.4.2..1.4.4
-[1.4.2]: https://github.com/unshackle-dl/unshackle/compare/1.4.1..1.4.2
-[1.4.1]: https://github.com/unshackle-dl/unshackle/compare/1.4.0..1.4.1
-[1.4.0]: https://github.com/unshackle-dl/unshackle/compare/1.3.0..1.4.0
-[1.3.0]: https://github.com/unshackle-dl/unshackle/compare/1.2.0..1.3.0
-[1.2.0]: https://github.com/unshackle-dl/unshackle/compare/1.1.0..1.2.0
-[1.1.0]: https://github.com/unshackle-dl/unshackle/compare/1.0.1..1.1.0
+[5.0.0]: https://github.com/unshackle-dl/unshackle-dev/compare/4.0.0..5.0.0
+[4.0.0]: https://github.com/unshackle-dl/unshackle-dev/compare/3.0.0..4.0.0
+[3.0.0]: https://github.com/unshackle-dl/unshackle-dev/compare/2.3.0..3.0.0
+[2.3.0]: https://github.com/unshackle-dl/unshackle-dev/compare/2.2.0..2.3.0
+[2.2.0]: https://github.com/unshackle-dl/unshackle-dev/compare/2.1.0..2.2.0
+[2.1.0]: https://github.com/unshackle-dl/unshackle-dev/compare/2.0.0..2.1.0
+[2.0.0]: https://github.com/unshackle-dl/unshackle-dev/compare/1.4.8..2.0.0
+[1.4.8]: https://github.com/unshackle-dl/unshackle-dev/compare/1.4.7..1.4.8
+[1.4.7]: https://github.com/unshackle-dl/unshackle-dev/compare/1.4.6..1.4.7
+[1.4.6]: https://github.com/unshackle-dl/unshackle-dev/compare/1.4.5..1.4.6
+[1.4.5]: https://github.com/unshackle-dl/unshackle-dev/compare/1.4.4..1.4.5
+[1.4.4]: https://github.com/unshackle-dl/unshackle-dev/compare/1.4.2..1.4.4
+[1.4.2]: https://github.com/unshackle-dl/unshackle-dev/compare/1.4.1..1.4.2
+[1.4.1]: https://github.com/unshackle-dl/unshackle-dev/compare/1.4.0..1.4.1
+[1.4.0]: https://github.com/unshackle-dl/unshackle-dev/compare/1.3.0..1.4.0
+[1.3.0]: https://github.com/unshackle-dl/unshackle-dev/compare/1.2.0..1.3.0
+[1.2.0]: https://github.com/unshackle-dl/unshackle-dev/compare/1.1.0..1.2.0
+[1.1.0]: https://github.com/unshackle-dl/unshackle-dev/compare/1.0.1..1.1.0
