@@ -489,6 +489,9 @@ class DASH:
                 )
             raise FileNotFoundError(error_msg)
 
+        for control_file in save_dir.glob("*.!dev"):
+            control_file.unlink(missing_ok=True)
+
         segments_to_merge = [x for x in sorted(save_dir.iterdir()) if x.is_file()]
 
         if debug_logger:

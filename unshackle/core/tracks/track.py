@@ -358,9 +358,6 @@ class Track:
                                     status_update["downloaded"] = f"URL {downloaded}"
                                 progress(**status_update)
 
-                        # see https://github.com/devine-dl/devine/issues/71
-                        save_path.with_suffix(f"{save_path.suffix}.aria2__temp").unlink(missing_ok=True)
-
                         self.path = save_path
                         events.emit(events.Types.TRACK_DOWNLOADED, track=self)
 

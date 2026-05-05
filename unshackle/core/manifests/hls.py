@@ -655,9 +655,8 @@ class HLS:
                     status_update["downloaded"] = f"HLS {downloaded}"
                 progress(**status_update)
 
-        # see https://github.com/devine-dl/devine/issues/71
-        for control_file in segment_save_dir.glob("*.aria2__temp"):
-            control_file.unlink()
+        for control_file in segment_save_dir.glob("*.!dev"):
+            control_file.unlink(missing_ok=True)
 
         progress(total=total_segments, completed=0, downloaded="Merging")
 
