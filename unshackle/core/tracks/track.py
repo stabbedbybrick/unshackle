@@ -687,25 +687,29 @@ class Track:
             if hasattr(self, "data") and self.data.get("audio_language"):
                 audio_lang = self.data["audio_language"]
                 audio_name = self.data.get("audio_language_name", audio_lang)
-                args.extend([
-                    "-metadata:s:a:0",
-                    f"language={audio_lang}",
-                    "-metadata:s:a:0",
-                    f"title={audio_name}",
-                    "-metadata:s:a:0",
-                    f"handler_name={audio_name}",
-                ])
+                args.extend(
+                    [
+                        "-metadata:s:a:0",
+                        f"language={audio_lang}",
+                        "-metadata:s:a:0",
+                        f"title={audio_name}",
+                        "-metadata:s:a:0",
+                        f"handler_name={audio_name}",
+                    ]
+                )
 
-            args.extend([
-                # Following are very important!
-                "-map_metadata",
-                "-1",  # don't transfer metadata to output file
-                "-fflags",
-                "bitexact",  # only have minimal tag data, reproducible mux
-                "-codec",
-                "copy",
-                str(output_path),
-            ])
+            args.extend(
+                [
+                    # Following are very important!
+                    "-map_metadata",
+                    "-1",  # don't transfer metadata to output file
+                    "-fflags",
+                    "bitexact",  # only have minimal tag data, reproducible mux
+                    "-codec",
+                    "copy",
+                    str(output_path),
+                ]
+            )
 
             subprocess.run(
                 args,

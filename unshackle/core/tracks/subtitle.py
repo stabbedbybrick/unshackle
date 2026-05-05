@@ -461,15 +461,17 @@ class Subtitle(Track):
                     content_lines.append(lines[i])
                     i += 1
 
-                cues.append({
-                    "start_ms": Subtitle._parse_vtt_time(start_str),
-                    "end_ms": Subtitle._parse_vtt_time(end_str),
-                    "start_str": start_str,
-                    "end_str": end_str,
-                    "line_pos": line_pos,
-                    "content": "\n".join(content_lines),
-                    "settings": settings,
-                })
+                cues.append(
+                    {
+                        "start_ms": Subtitle._parse_vtt_time(start_str),
+                        "end_ms": Subtitle._parse_vtt_time(end_str),
+                        "start_str": start_str,
+                        "end_str": end_str,
+                        "line_pos": line_pos,
+                        "content": "\n".join(content_lines),
+                        "settings": settings,
+                    }
+                )
             else:
                 i += 1
 
@@ -494,19 +496,23 @@ class Subtitle(Track):
                 group.sort(key=lambda x: x["line_pos"])
                 # Use the earliest start time from the group
                 earliest = min(group, key=lambda x: x["start_ms"])
-                merged_cues.append({
-                    "start_str": earliest["start_str"],
-                    "end_str": group[0]["end_str"],
-                    "content": "\n".join(c["content"] for c in group),
-                    "settings": "",
-                })
+                merged_cues.append(
+                    {
+                        "start_str": earliest["start_str"],
+                        "end_str": group[0]["end_str"],
+                        "content": "\n".join(c["content"] for c in group),
+                        "settings": "",
+                    }
+                )
             else:
-                merged_cues.append({
-                    "start_str": current["start_str"],
-                    "end_str": current["end_str"],
-                    "content": current["content"],
-                    "settings": current["settings"],
-                })
+                merged_cues.append(
+                    {
+                        "start_str": current["start_str"],
+                        "end_str": current["end_str"],
+                        "content": current["content"],
+                        "settings": current["settings"],
+                    }
+                )
 
             i = j if len(group) > 1 else i + 1
 
@@ -1145,14 +1151,16 @@ class Subtitle(Track):
                         if cue_box.type == b"sttg":
                             layout = Layout(webvtt_positioning=cue_box.settings)
                         elif cue_box.type == b"payl":
-                            nodes.extend([
-                                node
-                                for line in cue_box.cue_text.split("\n")
-                                for node in [
-                                    CaptionNode.create_text(WebVTTReader()._decode(line)),
-                                    CaptionNode.create_break(),
+                            nodes.extend(
+                                [
+                                    node
+                                    for line in cue_box.cue_text.split("\n")
+                                    for node in [
+                                        CaptionNode.create_text(WebVTTReader()._decode(line)),
+                                        CaptionNode.create_break(),
+                                    ]
                                 ]
-                            ])
+                            )
                             nodes.pop()
 
                     if nodes:

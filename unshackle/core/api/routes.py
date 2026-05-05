@@ -1327,24 +1327,26 @@ def setup_swagger(app: web.Application) -> None:
     )
 
     # Add routes with OpenAPI documentation
-    swagger.add_routes([
-        web.get("/api/health", health),
-        web.get("/api/services", services),
-        web.post("/api/search", search),
-        web.post("/api/list-titles", list_titles),
-        web.post("/api/list-tracks", list_tracks),
-        web.post("/api/download", download),
-        web.get("/api/download/jobs", download_jobs),
-        web.get("/api/download/jobs/{job_id}", download_job_detail),
-        web.delete("/api/download/jobs/{job_id}", cancel_download_job),
-        # Remote-DL session endpoints
-        web.post("/api/session/create", session_create),
-        web.get("/api/session/{session_id}/titles", session_titles),
-        web.post("/api/session/{session_id}/tracks", session_tracks),
-        web.post("/api/session/{session_id}/segments", session_segments),
-        web.post("/api/session/{session_id}/license", session_license),
-        web.get("/api/session/{session_id}/prompt", session_prompt_get),
-        web.post("/api/session/{session_id}/prompt", session_prompt_submit),
-        web.get("/api/session/{session_id}", session_info),
-        web.delete("/api/session/{session_id}", session_delete),
-    ])
+    swagger.add_routes(
+        [
+            web.get("/api/health", health),
+            web.get("/api/services", services),
+            web.post("/api/search", search),
+            web.post("/api/list-titles", list_titles),
+            web.post("/api/list-tracks", list_tracks),
+            web.post("/api/download", download),
+            web.get("/api/download/jobs", download_jobs),
+            web.get("/api/download/jobs/{job_id}", download_job_detail),
+            web.delete("/api/download/jobs/{job_id}", cancel_download_job),
+            # Remote-DL session endpoints
+            web.post("/api/session/create", session_create),
+            web.get("/api/session/{session_id}/titles", session_titles),
+            web.post("/api/session/{session_id}/tracks", session_tracks),
+            web.post("/api/session/{session_id}/segments", session_segments),
+            web.post("/api/session/{session_id}/license", session_license),
+            web.get("/api/session/{session_id}/prompt", session_prompt_get),
+            web.post("/api/session/{session_id}/prompt", session_prompt_submit),
+            web.get("/api/session/{session_id}", session_info),
+            web.delete("/api/session/{session_id}", session_delete),
+        ]
+    )
