@@ -1702,6 +1702,7 @@ class dl:
                                 sys.exit(1)
 
                     # choose best track by range and quality
+                    pre_hybrid_videos: list[Video] = list(title.tracks.videos) if has_hybrid else []
                     if has_hybrid:
                         # Apply hybrid selection for HYBRID tracks
                         hybrid_candidate_tracks = [
@@ -1812,6 +1813,31 @@ class dl:
                                     f"Continuing with remaining range(s): {', '.join(r.name for r in other_ranges)}"
                                 )
                                 range_ = other_ranges
+                                fallback_pool = pre_hybrid_videos
+                                if video_multi_lang:
+                                    fallback_langs = list(dict.fromkeys(str(v.language) for v in fallback_pool))
+                                else:
+                                    fallback_langs = [None]
+                                fallback_selected: list[Video] = []
+                                for resolution, color_range, codec, vlang in product(
+                                    quality or [None], other_ranges, vcodec or [None], fallback_langs
+                                ):
+                                    candidates = [
+                                        t
+                                        for t in fallback_pool
+                                        if (
+                                            not resolution
+                                            or t.height == resolution
+                                            or int(t.width * (9 / 16)) == resolution
+                                        )
+                                        and (not color_range or t.range == color_range)
+                                        and (not codec or t.codec == codec)
+                                        and (vlang is None or str(t.language) == vlang)
+                                    ]
+                                    match = candidates[-1] if worst and candidates else next(iter(candidates), None)
+                                    if match and match not in fallback_selected:
+                                        fallback_selected.append(match)
+                                title.tracks.videos = fallback_selected
                             else:
                                 self.log.error(msg)
                                 self.log.error(msg_detail)
