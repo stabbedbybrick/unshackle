@@ -1935,6 +1935,7 @@ class dl:
                         if "best" in processed_lang or "all" in processed_lang:
                             unique_languages = {track.language for track in title.tracks.audio}
                             selected_audio = []
+                            best_key = lambda x: (bool(x.atmos), x.bitrate or 0)  # noqa: E731
                             for language in unique_languages:
                                 codecs_to_check = acodec if (acodec and len(acodec) > 1) else [None]
                                 for codec in codecs_to_check:
@@ -1948,18 +1949,19 @@ class dl:
                                     if audio_description:
                                         standards = [t for t in base_candidates if not t.descriptive]
                                         if standards:
-                                            selected_audio.append(max(standards, key=lambda x: x.bitrate or 0))
+                                            selected_audio.append(max(standards, key=best_key))
                                         descs = [t for t in base_candidates if t.descriptive]
                                         if descs:
-                                            selected_audio.append(max(descs, key=lambda x: x.bitrate or 0))
+                                            selected_audio.append(max(descs, key=best_key))
                                     else:
-                                        selected_audio.append(max(base_candidates, key=lambda x: x.bitrate or 0))
+                                        selected_audio.append(max(base_candidates, key=best_key))
                             title.tracks.audio = selected_audio
                         else:
                             # If multiple codecs were explicitly requested, pick the best track per codec per
                             # requested language instead of selecting *all* bitrate variants of a codec.
                             if acodec and len(acodec) > 1:
                                 selected_audio: list[Audio] = []
+                                best_key = lambda x: (bool(x.atmos), x.bitrate or 0)  # noqa: E731
 
                                 for language in processed_lang:
                                     for codec in acodec:
@@ -1976,12 +1978,12 @@ class dl:
                                         if audio_description:
                                             standards = [t for t in candidates if not t.descriptive]
                                             if standards:
-                                                selected_audio.append(max(standards, key=lambda x: x.bitrate or 0))
+                                                selected_audio.append(max(standards, key=best_key))
                                             descs = [t for t in candidates if t.descriptive]
                                             if descs:
-                                                selected_audio.append(max(descs, key=lambda x: x.bitrate or 0))
+                                                selected_audio.append(max(descs, key=best_key))
                                         else:
-                                            selected_audio.append(max(candidates, key=lambda x: x.bitrate or 0))
+                                            selected_audio.append(max(candidates, key=best_key))
 
                                 title.tracks.audio = selected_audio
                             else:
