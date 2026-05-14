@@ -147,6 +147,19 @@ muxing:
   #   false: Separate MKV per (quality, audio_codec) combination
   #     Example: Title.1080p.AAC.mkv, Title.1080p.EC3.mkv
   merge_audio: true
+  # default_language: Override which track is flagged as the default in the muxed MKV.
+  #   audio:  BCP-47 tag of the preferred default audio track (e.g. pl, en, pt-BR).
+  #           Wins over the title's original_language. Falls back to is_original_lang
+  #           if no matching track is present.
+  #   video:  BCP-47 tag of the preferred default video track. Falls back to the
+  #           original-language / first-track rule if no match is found.
+  #   subtitle: BCP-47 tag of the preferred default subtitle track. Falls back to
+  #             the existing rule (forced sub matching the audio language) if no
+  #             matching subtitle is present.
+  # default_language:
+  #   audio: pl
+  #   video: pl
+  #   subtitle: pl
 
 # Login credentials for each Service
 credentials:

@@ -428,13 +428,40 @@ class Tracks:
         if config.muxing.get("set_title", True):
             cl.extend(["--title", title])
 
+        default_language = config.muxing.get("default_language") or {}
+        preferred_video_lang = default_language.get("video")
+        preferred_audio_lang = default_language.get("audio")
+        preferred_subtitle_lang = default_language.get("subtitle")
+
+        preferred_video_idx: Optional[int] = None
+        if preferred_video_lang:
+            preferred_video_idx = next(
+                (idx for idx, v in enumerate(self.videos) if is_close_match(v.language, [preferred_video_lang])),
+                None,
+            )
+
+        preferred_audio_idx: Optional[int] = None
+        if preferred_audio_lang:
+            preferred_audio_idx = next(
+                (idx for idx, a in enumerate(self.audio) if is_close_match(a.language, [preferred_audio_lang])),
+                None,
+            )
+
+        preferred_subtitle_idx: Optional[int] = None
+        if preferred_subtitle_lang and not skip_subtitles:
+            preferred_subtitle_idx = next(
+                (idx for idx, s in enumerate(self.subtitles) if is_close_match(s.language, [preferred_subtitle_lang])),
+                None,
+            )
+
         for i, vt in enumerate(self.videos):
             if not vt.path or not vt.path.exists():
                 raise ValueError("Video Track must be downloaded before muxing...")
             events.emit(events.Types.TRACK_MULTIPLEX, track=vt)
 
-            is_default = False
-            if title_language:
+            if preferred_video_idx is not None:
+                is_default = i == preferred_video_idx
+            elif title_language:
                 is_default = vt.language == title_language
                 if not any(v.language == title_language for v in self.videos):
                     is_default = vt.is_original_lang or i == 0
@@ -490,6 +517,10 @@ class Tracks:
             if not at.path or not at.path.exists():
                 raise ValueError("Audio Track must be downloaded before muxing...")
             events.emit(events.Types.TRACK_MULTIPLEX, track=at)
+            if preferred_audio_idx is not None:
+                audio_default = i == preferred_audio_idx
+            else:
+                audio_default = at.is_original_lang
             cl.extend(
                 [
                     "--track-name",
@@ -497,7 +528,7 @@ class Tracks:
                     "--language",
                     f"0:{at.language}",
                     "--default-track",
-                    f"0:{at.is_original_lang}",
+                    f"0:{audio_default}",
                     "--visual-impaired-flag",
                     f"0:{at.descriptive}",
                     "--original-flag",
@@ -511,11 +542,14 @@ class Tracks:
             )
 
         if not skip_subtitles:
-            for st in self.subtitles:
+            for i, st in enumerate(self.subtitles):
                 if not st.path or not st.path.exists():
                     raise ValueError("Text Track must be downloaded before muxing...")
                 events.emit(events.Types.TRACK_MULTIPLEX, track=st)
-                default = bool(self.audio and is_close_match(st.language, [self.audio[0].language]) and st.forced)
+                if preferred_subtitle_idx is not None:
+                    default = i == preferred_subtitle_idx
+                else:
+                    default = bool(self.audio and is_close_match(st.language, [self.audio[0].language]) and st.forced)
                 cl.extend(
                     [
                         "--track-name",
