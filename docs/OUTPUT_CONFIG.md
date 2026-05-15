@@ -204,6 +204,32 @@ Enable/disable tagging downloaded files with IMDB/TMDB/TVDB identifiers (when av
   Note: The `--split-audio` CLI flag overrides this setting. When `--split-audio` is passed,
   `merge_audio` is effectively set to `false` for that run.
 
+- `default_language` (dict)
+  Override which track is flagged as the default in the muxed MKV, regardless
+  of the title's original language. Useful when you always want your player to
+  open on a specific language (e.g. always default to Polish audio even on
+  English originals). Only affects the MKV `--default-track` flag — track
+  selection (`-l`, `--alang`, etc.) is unchanged. All keys are optional; each
+  track type falls back to its previous default rule when the configured
+  language isn't present in the manifest.
+
+  - `audio`: BCP-47 tag (e.g. `pl`, `en`, `pt-BR`). Wins over `is_original_lang`.
+    The `--original-flag` continues to mark the true original-audio track.
+  - `video`: BCP-47 tag. Wins over the title-language / first-track rule.
+  - `subtitle`: BCP-47 tag. Wins over the "forced sub matching audio" rule.
+
+  Languages are matched with the same close-match logic used elsewhere
+  (`pt` matches `pt-BR`, etc.). Supports per-service overrides like the rest
+  of `muxing`.
+
+  ```yaml
+  muxing:
+    default_language:
+      audio: pl
+      video: pl
+      subtitle: pl
+  ```
+
 ---
 
 ## chapter_fallback_name (str)
