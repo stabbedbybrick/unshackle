@@ -1,9 +1,10 @@
 import json
 import subprocess
 from pathlib import Path
-from typing import Union
+from typing import Optional, Sequence, Union
 
 from unshackle.core import binaries
+from unshackle.core.console import console
 
 
 def ffprobe(uri: Union[bytes, Path]) -> dict:
@@ -23,3 +24,34 @@ def ffprobe(uri: Union[bytes, Path]) -> dict:
     except subprocess.CalledProcessError:
         return {}
     return json.loads(ff.stdout.decode("utf8"))
+
+
+def run_step(
+    args: Sequence[Union[str, Path]],
+    *,
+    status: Optional[str] = None,
+    output: Optional[Path] = None,
+    label: str = "subprocess step",
+) -> bytes:
+    """Run a CLI step that writes to `output` (when provided). Returns stderr bytes.
+
+    Raises RuntimeError with the stderr tail when the process exits non-zero, or when
+    `output` is given and does not exist / is empty after the run.
+    """
+    if output is not None:
+        output.unlink(missing_ok=True)
+
+    str_args = [str(a) for a in args]
+    if status:
+        with console.status(status, spinner="dots"):
+            p = subprocess.run(str_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    else:
+        p = subprocess.run(str_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+    stderr = p.stderr or b""
+    bad_output = output is not None and (not output.exists() or output.stat().st_size == 0)
+    if p.returncode or bad_output:
+        if output is not None:
+            output.unlink(missing_ok=True)
+        raise RuntimeError(f"{label} failed: {stderr.decode(errors='replace')[-400:]}")
+    return stderr
