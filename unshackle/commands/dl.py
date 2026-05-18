@@ -32,6 +32,7 @@ from rich.padding import Padding
 from rich.panel import Panel
 from rich.progress import BarColumn, Progress, SpinnerColumn, TaskID, TextColumn, TimeRemainingColumn
 from rich.rule import Rule
+from rich.spinner import Spinner
 from rich.table import Table
 from rich.text import Text
 from rich.tree import Tree
@@ -1422,8 +1423,11 @@ class dl:
 
             if slow and i != 0:
                 delay = random.randint(slow[0], slow[1])
-                with console.status(f"Delaying by {delay} seconds..."):
-                    time.sleep(delay)
+                spinner = Spinner("dots", text=f"Delaying by {delay} seconds...")
+                with Live(Padding(spinner, (0, 5)), console=console, refresh_per_second=12.5, transient=True):
+                    for remaining in range(delay, 0, -1):
+                        spinner.update(text=f"Delaying by {remaining} seconds...")
+                        time.sleep(1)
 
             with console.status("Subscribing to events...", spinner="dots"):
                 events.reset()
