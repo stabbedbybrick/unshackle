@@ -226,6 +226,7 @@ cython_debug/
 .github/copilot-instructions.md
 CLAUDE.md
 AGENTS.md
+graphify-out/
 
 # CodeQL local analysis
 .codeql-db/

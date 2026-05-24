@@ -56,13 +56,29 @@ from unshackle.core.tracks import Audio, Subtitle, Tracks, Video
 from unshackle.core.tracks.attachment import Attachment
 from unshackle.core.tracks.dv_fixup import apply_dv_fixup
 from unshackle.core.tracks.hybrid import Hybrid
-from unshackle.core.utilities import (find_font_with_fallbacks, find_missing_langs, get_debug_logger,
-                                      get_system_fonts, init_debug_logger, is_close_match, suggest_font_packages,
-                                      time_elapsed_since)
+from unshackle.core.utilities import (
+    find_font_with_fallbacks,
+    find_missing_langs,
+    get_debug_logger,
+    get_system_fonts,
+    init_debug_logger,
+    is_close_match,
+    suggest_font_packages,
+    time_elapsed_since,
+)
 from unshackle.core.utils import tags
-from unshackle.core.utils.click_types import (AUDIO_CODEC_LIST, LANGUAGE_RANGE, QUALITY_LIST, SEASON_RANGE,
-                                              SLOW_DELAY_RANGE, ContextData, MultipleChoice, MultipleVideoCodecChoice,
-                                              SubtitleCodecChoice)
+from unshackle.core.utils.bitrate import apply_real_bitrates
+from unshackle.core.utils.click_types import (
+    AUDIO_CODEC_LIST,
+    LANGUAGE_RANGE,
+    QUALITY_LIST,
+    SEASON_RANGE,
+    SLOW_DELAY_RANGE,
+    ContextData,
+    MultipleChoice,
+    MultipleVideoCodecChoice,
+    SubtitleCodecChoice,
+)
 from unshackle.core.utils.collections import merge_dict
 from unshackle.core.utils.selector import select_multiple
 from unshackle.core.utils.subprocess import ffprobe
@@ -419,6 +435,22 @@ class dl:
         "--tag", type=str, default=None, help="Set the Group Tag to be used, overriding the one in config if any."
     )
     @click.option("--repack", is_flag=True, default=False, help="Add REPACK tag to the output filename.")
+    @click.option(
+        "-rvb",
+        "--real-video-bitrate",
+        is_flag=True,
+        default=False,
+        help="Probe actual media size to compute true video bitrates (top renditions per codec/range), "
+        "overriding the manifest's declared bitrate.",
+    )
+    @click.option(
+        "-rab",
+        "--real-audio-bitrate",
+        is_flag=True,
+        default=False,
+        help="Probe actual media size to compute true audio bitrates (top renditions per codec/channels/language), "
+        "overriding the manifest's declared bitrate. Slower than --real-video-bitrate (more renditions).",
+    )
     @click.option(
         "--tmdb",
         "tmdb_id",
@@ -1051,6 +1083,8 @@ class dl:
         worst: bool,
         best_available: bool,
         split_audio: Optional[bool] = None,
+        real_video_bitrate: bool = False,
+        real_audio_bitrate: bool = False,
         *_: Any,
         **__: Any,
     ) -> None:
@@ -1540,6 +1574,24 @@ class dl:
                                 (track.strip_hearing_impaired()) if track.id == sub_id else None
                             ),
                         )
+
+            if real_video_bitrate:
+                with console.status("Probing real video bitrates...", spinner="dots"):
+                    apply_real_bitrates(
+                        title.tracks.videos,
+                        service.session,
+                        log=self.log,
+                        group_key=lambda t: (t.codec, t.range),
+                    )
+
+            if real_audio_bitrate:
+                with console.status("Probing real audio bitrates...", spinner="dots"):
+                    apply_real_bitrates(
+                        title.tracks.audio,
+                        service.session,
+                        log=self.log,
+                        group_key=lambda t: (t.codec, t.channels, str(t.language), t.descriptive),
+                    )
 
             with console.status("Sorting tracks by language and bitrate...", spinner="dots"):
                 video_sort_lang = v_lang or lang

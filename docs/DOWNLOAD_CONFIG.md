@@ -86,6 +86,8 @@ to a CLI option on the `dl` command. CLI arguments always take priority over con
 | `abitrate` | int | highest | Audio bitrate in kbps |
 | `vbitrate_range` | str | none | Video bitrate window in kbps, format `MIN-MAX` (e.g., `6000-7000`) |
 | `abitrate_range` | str | none | Audio bitrate window in kbps, format `MIN-MAX` |
+| `real_video_bitrate` | bool | `false` | Probe actual media size to compute true video bitrates, overriding the manifest's declared value (`-rvb`). See [Real bitrate probing](#real-bitrate-probing) |
+| `real_audio_bitrate` | bool | `false` | Same as above for audio tracks (`-rab`). Slower than video (more renditions) |
 | `range_` | str or list | `SDR` | Color range(s): `SDR`, `HDR10`, `HDR10+`, `HLG`, `DV`, `HYBRID` |
 | `channels` | float | any | Audio channels (e.g., `5.1`, `7.1`) |
 | `worst` | bool | `false` | Select the lowest bitrate track within the specified quality. Requires `quality` |
@@ -151,6 +153,38 @@ to a CLI option on the `dl` command. CLI arguments always take priority over con
 | `no_proxy_download` | bool | `false` | Bypass proxy for segment downloads only. Manifest, license, and auth still use proxy |
 | `skip_dl` | bool | `false` | Skip download, only get decryption keys |
 | `cdm_only` | bool | `null` | Only use CDM (`true`) or only vaults (`false`) |
+
+### Real bitrate probing
+
+Some services declare inaccurate `bandwidth`/`BANDWIDTH` in their manifests — often
+a peak or nominal figure that is far from the real average. Because `track.bitrate`
+drives the track listing, sorting, and `--vbitrate` / `--vbitrate-range` selection,
+a wrong value picks the wrong track.
+
+`-rvb` / `--real-video-bitrate` (and `-rab` / `--real-audio-bitrate` for audio)
+probe the actual media size and overwrite `track.bitrate` with the measured value
+(`bytes * 8 / duration`) before listing and selection. So `-rvb --list` shows the
+true numbers, and `-rvb --vbitrate-range 6000-7000` selects against them. Without
+the flag, behaviour is unchanged (the manifest value is used).
+
+How it works:
+
+- **Single-file tracks** (one whole file per rendition — e.g. DASH `SegmentBase`
+  or services that collapse to a `BaseURL`) are measured **exactly**: the whole
+  file size over the track duration.
+- **Multi-segment tracks** (most HLS) are a **sampled estimate** — a spread of
+  segments is probed and extrapolated, typically within a few percent. Segment
+  bytes include container overhead, so MPEG-TS HLS reads a few percent above the
+  demuxed stream (this is the real *delivered* size).
+- Only the top renditions per quality tier are probed (video grouped by
+  codec + range, audio by codec + channels + language), in parallel, then extended
+  downward only as far as needed to keep ranking correct. This keeps the pass fast
+  even when a service exposes dozens of renditions.
+- Tracks whose duration cannot be determined fall back to `ffprobe`; probe failures
+  are non-fatal and leave the manifest bitrate in place.
+
+Per-track before→after values are logged at debug level (run with `-d`); the
+corrected values always appear in the Available Tracks panel.
 
 You can also set per-service `dl` overrides (see [Service Integration & Authentication Configuration](SERVICE_CONFIG.md)):
 
