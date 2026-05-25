@@ -247,6 +247,17 @@ class PlayReady:
     def kid(self) -> Optional[UUID]:
         return next(iter(self.kids), None)
 
+    def to_dict(self) -> dict[str, Any]:
+        """Serialise this DRM instance for export/import (PSSH + KIDs).
+
+        Content keys are stored once at the export's track level, not duplicated here.
+        """
+        return {
+            "system": "PlayReady",
+            "pssh_b64": self.pssh_b64,
+            "kids": [kid.hex for kid in self.kids],
+        }
+
     @property
     def kids(self) -> list[UUID]:
         return self._kids

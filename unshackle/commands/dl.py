@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import html
+import json
 import logging
 import math
 import os
@@ -22,7 +23,6 @@ from typing import Any, Callable, Optional
 from uuid import UUID
 
 import click
-import jsonpickle
 import yaml
 from langcodes import Language
 from pymediainfo import MediaInfo
@@ -56,29 +56,14 @@ from unshackle.core.tracks import Audio, Subtitle, Tracks, Video
 from unshackle.core.tracks.attachment import Attachment
 from unshackle.core.tracks.dv_fixup import apply_dv_fixup
 from unshackle.core.tracks.hybrid import Hybrid
-from unshackle.core.utilities import (
-    find_font_with_fallbacks,
-    find_missing_langs,
-    get_debug_logger,
-    get_system_fonts,
-    init_debug_logger,
-    is_close_match,
-    suggest_font_packages,
-    time_elapsed_since,
-)
+from unshackle.core.utilities import (find_font_with_fallbacks, find_missing_langs, get_debug_logger,
+                                      get_system_fonts, init_debug_logger, is_close_match, suggest_font_packages,
+                                      time_elapsed_since)
 from unshackle.core.utils import tags
 from unshackle.core.utils.bitrate import apply_real_bitrates
-from unshackle.core.utils.click_types import (
-    AUDIO_CODEC_LIST,
-    LANGUAGE_RANGE,
-    QUALITY_LIST,
-    SEASON_RANGE,
-    SLOW_DELAY_RANGE,
-    ContextData,
-    MultipleChoice,
-    MultipleVideoCodecChoice,
-    SubtitleCodecChoice,
-)
+from unshackle.core.utils.click_types import (AUDIO_CODEC_LIST, LANGUAGE_RANGE, QUALITY_LIST, SEASON_RANGE,
+                                              SLOW_DELAY_RANGE, ContextData, MultipleChoice, MultipleVideoCodecChoice,
+                                              SubtitleCodecChoice)
 from unshackle.core.utils.collections import merge_dict
 from unshackle.core.utils.selector import select_multiple
 from unshackle.core.utils.subprocess import ffprobe
@@ -524,6 +509,14 @@ class dl:
         help="Export track info and decryption keys to a JSON file in the exports directory.",
     )
     @click.option(
+        "--import",
+        "import_file",
+        type=str,
+        default=None,
+        hidden=True,
+        help="Internal: path to an export JSON to reconstruct a download from (used by 'unshackle import').",
+    )
+    @click.option(
         "--cdm-only/--vaults-only",
         is_flag=True,
         default=None,
@@ -658,6 +651,7 @@ class dl:
                         )
 
         self.profile = profile
+        self.proxy_requested = bool(proxy)
         self.tmdb_id = tmdb_id
         self.imdb_id = imdb_id
         self.enrich = enrich
@@ -1100,6 +1094,7 @@ class dl:
         if export:
             config.directories.exports.mkdir(parents=True, exist_ok=True)
             export_path = config.directories.exports / f"export_{self.service}_{int(time.time())}.json"
+            self.export_service = service
         else:
             export_path = None
 
@@ -2761,52 +2756,80 @@ class dl:
 
         console.print(Padding(f"Processed all titles in [progress.elapsed]{dl_time}", (0, 5, 1, 5)))
 
-    def _write_export(self, export: Path, title: Title_T, track: AnyTrack, drm: Any) -> None:
-        """Write decryption keys and track info to the export JSON file."""
+    @staticmethod
+    def title_to_meta(title: Title_T) -> dict[str, Any]:
+        """Capture the title fields needed to rebuild a Title for output naming on import."""
+        from unshackle.core.titles import Episode, Movie
+
+        meta: dict[str, Any] = {
+            "id": str(title.id),
+            "language": str(title.language) if getattr(title, "language", None) else None,
+        }
+        if isinstance(title, Episode):
+            meta.update(
+                type="episode",
+                series_title=title.title,
+                season=title.season,
+                number=title.number,
+                name=title.name,
+                year=title.year,
+            )
+        elif isinstance(title, Movie):
+            meta.update(type="movie", name=title.name, year=title.year)
+        else:
+            meta.update(type="movie", name=str(title))
+        return meta
+
+    def write_export(self, export: Path, title: Title_T, track: AnyTrack, drm: Any) -> None:
+        """Write a shareable v2 export usable by ``unshackle import``.
+
+        Carries no session/cookies/dl-flags. Region (country code) is stored only when the
+        export used ``--proxy``, as an import geofence. Each track records only the licensed
+        DRM system; content keys live once under the track's ``keys``.
+        """
         with self.EXPORT_LOCK:
-            keys = {}
+            doc: dict[str, Any] = {}
             if export.is_file():
-                keys = jsonpickle.loads(export.read_text(encoding="utf8")) or {}
-            if str(title) not in keys:
-                keys[str(title)] = {}
+                doc = json.loads(export.read_text(encoding="utf8")) or {}
 
-            title_data = keys[str(title)]
+            doc.setdefault("version", 2)
+            doc.setdefault("service", self.service)
+            if "region" not in doc and getattr(self, "proxy_requested", False):
+                region = getattr(getattr(self, "export_service", None), "current_region", None)
+                if region:
+                    doc["region"] = region
 
-            if title.tracks.manifest_url and "manifest" not in title_data:
-                title_data["manifest"] = title.tracks.manifest_url
+            titles = doc.setdefault("titles", {})
+            tinfo = titles.setdefault(str(title.id), {})
+            tinfo.setdefault("meta", self.title_to_meta(title))
 
-            if isinstance(track, Video):
-                section = "video"
-            elif isinstance(track, Audio):
-                section = "audio"
-            else:
-                section = "other"
+            if title.tracks.manifest_url:
+                tinfo.setdefault("manifest_url", title.tracks.manifest_url)
 
-            if section not in title_data:
-                title_data[section] = {}
-            if str(track) not in title_data[section]:
-                title_data[section][str(track)] = {}
+            all_tracks = [*title.tracks.videos, *title.tracks.audio, *title.tracks.subtitles]
+            if "manifest_type" not in tinfo:
+                tinfo["manifest_type"] = next(
+                    (t.descriptor.name for t in all_tracks if t.descriptor != Video.Descriptor.URL), None
+                )
 
-            track_data = title_data[section][str(track)]
-            track_data["url"] = track.url
-            track_data["descriptor"] = track.descriptor.name
+            tracks_map = tinfo.setdefault("tracks", {})
+            if not tracks_map:
+                for t in all_tracks:
+                    tracks_map[str(t.id)] = t.to_dict()
 
-            if "keys" not in track_data:
-                track_data["keys"] = {}
+            track_data = tracks_map.setdefault(str(track.id), track.to_dict())
+            if hasattr(drm, "to_dict"):
+                track_data["drm"] = [drm.to_dict()]
+            keys = track_data.setdefault("keys", {})
             for kid, key in drm.content_keys.items():
-                track_data["keys"][kid.hex] = key
+                keys[kid.hex] = key
 
-            if "subtitles" not in title_data:
-                subs = {}
-                for sub in title.tracks.subtitles:
-                    subs[str(sub)] = {"url": sub.url}
-                if subs:
-                    title_data["subtitles"] = subs
+            if "chapters" not in tinfo:
+                tinfo["chapters"] = [
+                    {"timestamp": chapter.timestamp, "name": chapter.name} for chapter in (title.tracks.chapters or [])
+                ]
 
-            section_order = ["manifest", "video", "audio", "subtitles", "other"]
-            keys[str(title)] = {k: title_data[k] for k in section_order if k in title_data}
-
-            export.write_text(jsonpickle.dumps(keys, indent=4), encoding="utf8")
+            export.write_text(json.dumps(doc, indent=4, ensure_ascii=False), encoding="utf8")
 
     def prepare_drm(
         self,
@@ -3088,7 +3111,7 @@ class dl:
                     table.add_row(cek_tree)
 
                 if export:
-                    self._write_export(export, title, track, drm)
+                    self.write_export(export, title, track, drm)
 
         elif isinstance(drm, PlayReady):
             if self.debug_logger:
@@ -3259,7 +3282,7 @@ class dl:
                     table.add_row(cek_tree)
 
                 if export:
-                    self._write_export(export, title, track, drm)
+                    self.write_export(export, title, track, drm)
 
         elif isinstance(drm, MonaLisa):
             with self.DRM_TABLE_LOCK:

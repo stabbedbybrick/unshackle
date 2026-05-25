@@ -180,6 +180,17 @@ class Widevine:
             return [self._kid]
         return []
 
+    def to_dict(self) -> dict[str, Any]:
+        """Serialise this DRM instance for export/import (PSSH + KIDs).
+
+        Content keys are stored once at the export's track level, not duplicated here.
+        """
+        return {
+            "system": "Widevine",
+            "pssh_b64": self.pssh.dumps(),
+            "kids": [kid.hex for kid in self.kids],
+        }
+
     def get_content_keys(self, cdm: WidevineCdm, certificate: Callable, licence: Callable) -> None:
         """
         Create a CDM Session and obtain Content Keys for this DRM Instance.

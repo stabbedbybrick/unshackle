@@ -297,6 +297,37 @@ class Video(Track):
         self.needs_duration_fix = False
         self.dv_compatible_bitstream = dv_compatible_bitstream
 
+    def to_dict(self) -> dict[str, Any]:
+        data = super().to_dict()
+        data.update(
+            {
+                "codec": self.codec.name if self.codec else None,
+                "range": self.range.name if self.range else None,
+                "bitrate": self.bitrate,
+                "width": self.width,
+                "height": self.height,
+                "fps": str(self.fps) if self.fps else None,
+                "scan_type": self.scan_type.name if self.scan_type else None,
+                "dv_compatible_bitstream": self.dv_compatible_bitstream,
+            }
+        )
+        return data
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> Video:
+        kwargs = Track.base_kwargs_from_dict(data)
+        return cls(
+            **kwargs,
+            codec=Video.Codec[data["codec"]] if data.get("codec") else None,
+            range_=Video.Range[data["range"]] if data.get("range") else None,
+            bitrate=data.get("bitrate"),
+            width=data.get("width"),
+            height=data.get("height"),
+            fps=data.get("fps"),
+            scan_type=Video.ScanType[data["scan_type"]] if data.get("scan_type") else None,
+            dv_compatible_bitstream=data.get("dv_compatible_bitstream", False),
+        )
+
     def __str__(self) -> str:
         return " | ".join(
             filter(

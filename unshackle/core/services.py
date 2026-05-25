@@ -70,6 +70,10 @@ class Services(click.MultiCommand):
         """Load the Service and return the Click CLI method."""
         tag = Services.get_tag(name)
 
+        import_file = ctx.params.get("import_file") or (ctx.parent and ctx.parent.params.get("import_file"))
+        if import_file:
+            return Services._make_import_command(tag, ctx)
+
         remote = ctx.params.get("remote") or (ctx.parent and ctx.parent.params.get("remote"))
         if remote:
             return Services._make_remote_command(tag, ctx)
@@ -140,6 +144,24 @@ class Services(click.MultiCommand):
                     remote_cli = click.option(*opts, **kwargs)(remote_cli)
 
         return remote_cli
+
+    @staticmethod
+    def _make_import_command(tag: str, ctx: click.Context) -> click.Command:
+        """Create a synthetic command that yields an ImportService from an export JSON.
+
+        Mirrors how remote services are wired so dl.py's result() runs unchanged.
+        """
+
+        @click.command(name=tag, short_help="Reconstruct a download from an export JSON.")
+        @click.argument("title", type=str, required=False, default="")
+        @click.pass_context
+        def import_cli(ctx: click.Context, title: str, **kwargs: object) -> object:
+            from unshackle.core.import_service import ImportService
+
+            import_file = ctx.params.get("import_file") or (ctx.parent and ctx.parent.params.get("import_file"))
+            return ImportService(ctx, tag, title, import_file)
+
+        return import_cli
 
     @staticmethod
     def _fetch_remote_service_info(tag: str, ctx: click.Context) -> dict | None:

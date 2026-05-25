@@ -439,6 +439,57 @@ class Track:
         self.path = target
         return target
 
+    def to_dict(self) -> dict[str, Any]:
+        """Serialise the track for export/import (identity/URL/descriptor/language).
+
+        DRM is not serialised here; the export writer attaches the licensed DRM + keys.
+        Subclasses add their own codec/quality fields.
+        """
+        data: dict[str, Any] = {
+            "type": self.__class__.__name__,
+            "id": self.id,
+            "url": self.url,
+            "language": str(self.language),
+            "is_original_lang": self.is_original_lang,
+            "descriptor": self.descriptor.name,
+            "needs_repack": self.needs_repack,
+            "name": self.name,
+            "edition": self.edition,
+        }
+        return data
+
+    @staticmethod
+    def base_kwargs_from_dict(data: dict[str, Any]) -> dict[str, Any]:
+        """Build the shared Track constructor kwargs from a ``to_dict()`` payload.
+
+        DRM is not reconstructed here — ``to_dict`` does not serialise it, and the import
+        flow attaches the licensed DRM + content keys separately.
+        """
+        return {
+            "url": data["url"],
+            "language": data.get("language") or "und",
+            "is_original_lang": data.get("is_original_lang", False),
+            "descriptor": Track.Descriptor[data.get("descriptor", "URL")],
+            "needs_repack": data.get("needs_repack", False),
+            "name": data.get("name"),
+            "edition": data.get("edition") or None,
+            "id_": data.get("id"),
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "Track":
+        """Reconstruct the correct Track subclass from a ``to_dict()`` payload."""
+        from unshackle.core.tracks.audio import Audio
+        from unshackle.core.tracks.subtitle import Subtitle
+        from unshackle.core.tracks.video import Video
+
+        track_type = data.get("type")
+        builders = {"Video": Video, "Audio": Audio, "Subtitle": Subtitle}
+        builder = builders.get(track_type)
+        if builder is None:
+            raise ValueError(f"Cannot reconstruct unsupported track type: {track_type!r}")
+        return builder.from_dict(data)
+
     def get_track_name(self) -> Optional[str]:
         """Get the Track Name."""
         return self.name
