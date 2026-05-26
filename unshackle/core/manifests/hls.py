@@ -609,8 +609,9 @@ class HLS:
             try:
                 if not license_widevine:
                     raise ValueError("license_widevine func must be supplied to use DRM")
+                track_kid = HLS.get_track_kid_from_init(master, track, session) or session_drm.kid
                 progress(downloaded="LICENSING")
-                license_widevine(session_drm)
+                license_widevine(session_drm, track_kid=track_kid)
                 progress(downloaded="[yellow]LICENSED")
             except Exception:  # noqa
                 DOWNLOAD_CANCELLED.set()  # skip pending track downloads
