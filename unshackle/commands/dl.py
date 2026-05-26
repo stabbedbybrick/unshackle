@@ -2829,6 +2829,9 @@ class dl:
                     {"timestamp": chapter.timestamp, "name": chapter.name} for chapter in (title.tracks.chapters or [])
                 ]
 
+            if "attachments" not in tinfo:
+                tinfo["attachments"] = [a.to_dict() for a in (title.tracks.attachments or []) if a.url]
+
             export.write_text(json.dumps(doc, indent=4, ensure_ascii=False), encoding="utf8")
 
     def prepare_drm(

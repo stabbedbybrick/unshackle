@@ -18,6 +18,7 @@ from unshackle.core.manifests import DASH, HLS, ISM
 from unshackle.core.remote_service import RemoteService, _build_title, _resolve_proxy
 from unshackle.core.titles import Episode, Movies, Series, Title_T, Titles_T, remap_titles
 from unshackle.core.tracks import Audio, Chapter, Chapters, Tracks, Video
+from unshackle.core.tracks.attachment import Attachment
 from unshackle.core.tracks.track import Track
 
 log = logging.getLogger("import")
@@ -165,6 +166,23 @@ class ImportService:
                 if drm:
                     track.drm = drm
                 tracks.add(track)
+
+        for attachment in entry.get("attachments") or []:
+            url = attachment.get("url")
+            if not url:
+                continue
+            try:
+                tracks.attachments.append(
+                    Attachment.from_url(
+                        url,
+                        name=attachment.get("name"),
+                        mime_type=attachment.get("mime_type"),
+                        description=attachment.get("description"),
+                        session=self.session,
+                    )
+                )
+            except Exception as e:
+                self.log.warning(f"Skipping attachment '{attachment.get('name')}': {e}")
 
         self.tracks_by_title[title_id] = tracks
         return tracks
