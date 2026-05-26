@@ -16,7 +16,7 @@ from unshackle.core.credential import Credential
 from unshackle.core.drm import drm_from_dict
 from unshackle.core.manifests import DASH, HLS, ISM
 from unshackle.core.remote_service import RemoteService, _build_title, _resolve_proxy
-from unshackle.core.titles import Episode, Movies, Series, Title_T, Titles_T
+from unshackle.core.titles import Episode, Movies, Series, Title_T, Titles_T, remap_titles
 from unshackle.core.tracks import Audio, Chapter, Chapters, Tracks, Video
 from unshackle.core.tracks.track import Track
 
@@ -123,7 +123,9 @@ class ImportService:
         return self.titles
 
     def get_titles_cached(self, title_id: Optional[str] = None) -> Titles_T:
-        return self.get_titles()
+        """Apply the service's title_map to titles reconstructed from the export sidecar."""
+        title_map = (config.services.get(self.service_tag) or {}).get("title_map") or {}
+        return remap_titles(self.get_titles(), title_map)
 
     def get_tracks(self, title: Title_T) -> Tracks:
         """Reconstruct the title's tracks from the export.

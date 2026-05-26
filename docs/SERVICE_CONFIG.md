@@ -27,7 +27,7 @@ EXAMPLE:
 
 You can override many global configuration options on a per-service basis by nesting them under the
 service tag in the `services` section. Supported override keys include: `dl`, `subtitle`, `muxing`,
-`headers`, `proxy_map`, and more.
+`headers`, `proxy_map`, `title_map`, and more.
 
 Overrides are merged with global config (not replaced) -- only specified keys are overridden, others
 use global defaults. CLI arguments always take priority over service-specific config.
@@ -46,6 +46,29 @@ services:
 
 Note: unshackle uses a single unified `requests`-based downloader. The legacy `aria2c`,
 `n_m3u8dl_re`, and `curl_impersonate` override sections have been removed.
+
+### title_map (dict)
+
+Rewrites service-provided titles before naming and output. Some services name a title differently
+from how you want it stored, which can break library matching (e.g. a regional variant reusing the
+international name). Keys are the exact title string the service returns; values are the desired
+output title.
+
+```yaml
+services:
+  EXAMPLE:
+    title_map:
+      Service Title: Desired Title
+```
+
+Episodes are matched on their show title, Movies and Songs on their name. The remap is applied
+after the title cache (so edits take effect without a cache reset) and before any `--enrich`
+override (so an explicit enrich still wins).
+
+It applies on the local `dl` path, the `import` command, and the remote client (`dl --remote`).
+For remote services the **client's** `title_map` is applied to the titles returned by the server,
+so you can rename titles for services you don't have installed locally. The server sends raw
+titles and does not remap, leaving the final name fully under the client's control.
 
 ### Service Class Conventions
 

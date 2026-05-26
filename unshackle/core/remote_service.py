@@ -25,7 +25,7 @@ from unshackle.core.config import config
 from unshackle.core.console import console
 from unshackle.core.constants import AnyTrack
 from unshackle.core.credential import Credential
-from unshackle.core.titles import Title_T, Titles_T
+from unshackle.core.titles import Title_T, Titles_T, remap_titles
 from unshackle.core.titles.episode import Episode, Series
 from unshackle.core.titles.movie import Movie, Movies
 from unshackle.core.tracks import Audio, Chapter, Chapters, Subtitle, Tracks, Video
@@ -573,7 +573,13 @@ class RemoteService:
         return self._titles
 
     def get_titles_cached(self, title_id: str = None) -> Titles_T:
-        return self.get_titles()
+        """Apply the client's local title_map to titles fetched from the remote server.
+
+        Lets users rename titles for remote services they don't have installed locally.
+        The server sends raw titles; the client's own ``services.<TAG>.title_map`` wins.
+        """
+        title_map = (config.services.get(self.service_tag) or {}).get("title_map") or {}
+        return remap_titles(self.get_titles(), title_map)
 
     def get_tracks(self, title: Title_T) -> Tracks:
         title_id = str(title.id)

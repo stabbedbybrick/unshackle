@@ -655,6 +655,11 @@ services:
     muxing:
       set_title: true
 
+    # Remap service-provided titles before naming/output
+    # Keyed by the exact title the service returns -> desired output title.
+    title_map:
+      Service Title: Desired Title
+
   # Example: Service with different regions per profile
   SERVICE_NAME:
     profiles:

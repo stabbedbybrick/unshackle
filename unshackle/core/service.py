@@ -27,7 +27,7 @@ from unshackle.core.credential import Credential
 from unshackle.core.drm import DRM_T
 from unshackle.core.search_result import SearchResult
 from unshackle.core.title_cacher import TitleCacher, get_account_hash, get_region_from_proxy
-from unshackle.core.titles import Title_T, Titles_T
+from unshackle.core.titles import Title_T, Titles_T, remap_titles
 from unshackle.core.tracks import Chapters, Tracks
 from unshackle.core.tracks.video import Video
 from unshackle.core.utils.ip_info import get_ip_info
@@ -482,7 +482,7 @@ class Service(metaclass=ABCMeta):
             else:
                 # If we can't determine title_id, just call get_titles directly
                 self.log.debug("Cannot determine title_id for caching, bypassing cache")
-                return self.get_titles()
+                return self.apply_title_map(self.get_titles())
 
         # Get cache control flags from context
         no_cache = False
@@ -495,7 +495,7 @@ class Service(metaclass=ABCMeta):
         account_hash = get_account_hash(self.credential)
 
         # Use title cache to get titles with fallback support
-        return self.title_cache.get_cached_titles(
+        titles = self.title_cache.get_cached_titles(
             title_id=str(title_id),
             fetch_function=self.get_titles,
             region=self.current_region,
@@ -503,6 +503,17 @@ class Service(metaclass=ABCMeta):
             no_cache=no_cache,
             reset_cache=reset_cache,
         )
+        return self.apply_title_map(titles)
+
+    def apply_title_map(self, titles: Titles_T) -> Titles_T:
+        """
+        Rewrite service-provided titles using the per-service ``title_map`` config.
+
+        ``title_map`` lives under ``services.<TAG>`` in unshackle.yaml. Applied after the
+        title cache so config edits take effect without a cache reset, and before any
+        ``--enrich`` override so enrich wins. See ``remap_titles`` for the match rules.
+        """
+        return remap_titles(titles, (self.config or {}).get("title_map") or {})
 
     @abstractmethod
     def get_tracks(self, title: Title_T) -> Tracks:
