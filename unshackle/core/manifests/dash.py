@@ -7,7 +7,7 @@ import math
 import re
 import shutil
 import sys
-from copy import copy
+from copy import deepcopy
 from functools import partial
 from pathlib import Path
 from typing import Any, Callable, Optional, Union
@@ -588,6 +588,32 @@ class DASH:
         return True
 
     @staticmethod
+    def _merge_segment_templates(adaptation_set: Element, representation: Element) -> Optional[Element]:
+        """
+        Build the effective SegmentTemplate for a Representation by cascading the
+        AdaptationSet > Representation levels (ISO/IEC 23009-1 5.3.9.1).
+
+        The Representation-level node, when present, is the base; attributes and the
+        SegmentTimeline child it does not declare are inherited from the AdaptationSet-level
+        node. Returns None if no SegmentTemplate exists at either level.
+        """
+        levels = [node.find("SegmentTemplate") for node in (adaptation_set, representation)]
+        present = [node for node in levels if node is not None]
+        if not present:
+            return None
+
+        merged = deepcopy(present[-1])
+        for ancestor in reversed(present[:-1]):
+            for attr, value in ancestor.attrib.items():
+                if merged.get(attr) is None:
+                    merged.set(attr, value)
+            if merged.find("SegmentTimeline") is None:
+                timeline = ancestor.find("SegmentTimeline")
+                if timeline is not None:
+                    merged.append(deepcopy(timeline))
+        return merged
+
+    @staticmethod
     def _get_period_segments(
         period: Element,
         adaptation_set: Element,
@@ -621,9 +647,7 @@ class DASH:
         period_duration = period.get("duration") or manifest.get("mediaPresentationDuration")
         init_data: Optional[bytes] = None
 
-        segment_template = representation.find("SegmentTemplate")
-        if segment_template is None:
-            segment_template = adaptation_set.find("SegmentTemplate")
+        segment_template = DASH._merge_segment_templates(adaptation_set, representation)
 
         segment_list = representation.find("SegmentList")
         if segment_list is None:
@@ -639,7 +663,6 @@ class DASH:
         track_kid: Optional[UUID] = None
 
         if segment_template is not None:
-            segment_template = copy(segment_template)
             start_number = int(segment_template.get("startNumber") or 1)
             end_number = int(segment_template.get("endNumber") or 0) or None
             segment_timeline = segment_template.find("SegmentTimeline")
