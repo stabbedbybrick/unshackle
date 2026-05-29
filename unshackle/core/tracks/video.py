@@ -296,6 +296,7 @@ class Video(Track):
         self.closed_captions: list[dict[str, Any]] = closed_captions or []
         self.needs_duration_fix = False
         self.dv_compatible_bitstream = dv_compatible_bitstream
+        self.hybrid_base_only = False
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()

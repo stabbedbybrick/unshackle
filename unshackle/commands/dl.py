@@ -2484,6 +2484,25 @@ class dl:
                             task_tracks = clone_tracks_for_audio(base_tracks, codec_audio_tracks)
                             multiplex_tasks.append((task_id, task_tracks, audio_codec))
 
+                    def mux_video_standalone(video_track: Optional[Video]) -> None:
+                        if video_track and video_track.dv_compatible_bitstream:
+                            apply_dv_fixup(video_track)
+
+                        task_description = "Multiplexing"
+                        if video_track:
+                            if len(quality) > 1:
+                                task_description += f" {video_track.height}p"
+                            if len(range_) > 1:
+                                task_description += f" {video_track.range.name}"
+                            if len(vcodec) > 1:
+                                task_description += f" {video_track.codec.name}"
+
+                        task_tracks = Tracks(title.tracks) + title.tracks.chapters + title.tracks.attachments
+                        if video_track:
+                            task_tracks.videos = [video_track]
+
+                        enqueue_mux_tasks(task_description, task_tracks)
+
                     if any(r == Video.Range.HYBRID for r in range_) and title.tracks.videos:
                         self.log.info("Processing Hybrid HDR10+DV tracks...")
 
@@ -2541,45 +2560,15 @@ class dl:
 
                         # Mux every requested range standalone, skipping the ingredient-only DV.
                         for video_track in original_videos:
-                            if getattr(video_track, "hybrid_base_only", False):
+                            if video_track.hybrid_base_only:
                                 continue
-                            if getattr(video_track, "dv_compatible_bitstream", False):
-                                apply_dv_fixup(video_track)
-
-                            task_description = "Multiplexing"
-                            if len(quality) > 1:
-                                task_description += f" {video_track.height}p"
-                            if len(range_) > 1:
-                                task_description += f" {video_track.range.name}"
-                            if len(vcodec) > 1:
-                                task_description += f" {video_track.codec.name}"
-
-                            task_tracks = Tracks(title.tracks) + title.tracks.chapters + title.tracks.attachments
-                            task_tracks.videos = [video_track]
-
-                            enqueue_mux_tasks(task_description, task_tracks)
+                            mux_video_standalone(video_track)
 
                         console.print()
                     else:
                         # Normal mode: process each video track separately
                         for video_track in title.tracks.videos or [None]:
-                            if video_track and getattr(video_track, "dv_compatible_bitstream", False):
-                                apply_dv_fixup(video_track)
-
-                            task_description = "Multiplexing"
-                            if video_track:
-                                if len(quality) > 1:
-                                    task_description += f" {video_track.height}p"
-                                if len(range_) > 1:
-                                    task_description += f" {video_track.range.name}"
-                                if len(vcodec) > 1:
-                                    task_description += f" {video_track.codec.name}"
-
-                            task_tracks = Tracks(title.tracks) + title.tracks.chapters + title.tracks.attachments
-                            if video_track:
-                                task_tracks.videos = [video_track]
-
-                            enqueue_mux_tasks(task_description, task_tracks)
+                            mux_video_standalone(video_track)
 
                     try:
                         with Live(Padding(progress, (0, 5, 1, 5)), console=console):
