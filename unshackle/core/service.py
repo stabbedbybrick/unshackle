@@ -1,4 +1,3 @@
-import base64
 import logging
 from abc import ABCMeta, abstractmethod
 from collections.abc import Callable, Generator
@@ -213,15 +212,10 @@ class Service(metaclass=ABCMeta):
 
             if proxy:
                 self.session.proxies.update({"all": proxy})
-                proxy_parse = urlparse(proxy)
-                if proxy_parse.username and proxy_parse.password:
-                    self.session.headers.update(
-                        {
-                            "Proxy-Authorization": base64.b64encode(
-                                f"{proxy_parse.username}:{proxy_parse.password}".encode("utf8")
-                            ).decode()
-                        }
-                    )
+                # Don't set Proxy-Authorization manually: both rnet (Proxy.all) and
+                # requests authenticate from the credentials embedded in the proxy URL.
+                # A manual header here was malformed (no "Basic " scheme) and broke
+                # plaintext-http forward-proxy requests with HTTP 407.
                 # Always verify proxy IP - proxies can change exit nodes
                 try:
                     proxy_ip_info = get_ip_info(self.session)
