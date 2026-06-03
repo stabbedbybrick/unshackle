@@ -46,11 +46,13 @@ This changelog is automatically generated using [git-cliff](https://git-cliff.or
 - *hls*: Resolve per-rendition KID in no-EXT-X-KEY fallback
 - *dash*: Inherit SegmentTemplate attributes across AdaptationSet/Representation
 - *dl*: Mux all requested ranges and select highest DV alongside hybrid
+- *session*: Proxy auth on http targets and string params support
 
 ### Documentation
 
 - Update docs to match current codebase
 - *output*: Document muxing.default_language override
+- Simplify README with demo and requirements
 
 ### Changes
 
